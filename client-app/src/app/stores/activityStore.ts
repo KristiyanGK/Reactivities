@@ -65,13 +65,13 @@ class ActivityStore {
         activity = await agent.Activities.details(id);
         runInAction('getting activity', () => {
           this.activity = activity;
-        })
-      } catch (error) {
-        console.log(error);
-      } finally {
-        runInAction('activity finaly', () => {
           this.loadingIntial = false;
         })
+      } catch (error) {
+        runInAction('get activity catch', () => {
+          this.loadingIntial = false;
+        })
+        console.log(error);
       }
     }
   }

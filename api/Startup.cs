@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using api.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
 using MediatR;
 using Application.Activities;
+using FluentValidation.AspNetCore;
 
 namespace api
 {
@@ -26,6 +27,7 @@ namespace api
                 options.UseSqlite(Configuration.GetConnectionString("DefaultConnection"));
             });
 
+            // setting up cors for our frontend
             services.AddCors(opt => {
                 opt.AddPolicy("CorsPolicy", policy => {
                     policy.AllowAnyHeader().AllowAnyMethod()
@@ -33,28 +35,23 @@ namespace api
                 });
             });
 
+            // speficifing one class gets the entire assembly
             services.AddMediatR(typeof(List.Handler).Assembly);
-
-            services.AddControllers();
+            
+            services.AddControllers()
+                .AddFluentValidation(cfg => 
+                {
+                    // speficifing one class gets the entire assembly
+                    cfg.RegisterValidatorsFromAssemblyContaining<Create>();
+                });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
-            else 
-            {
-                //app.UseHsts();
-            }
-
-            //app.UseHttpsRedirection();
+            app.UseMiddleware<ErrorHandlingMiddleware>();
 
             app.UseRouting();
-
-            app.UseAuthorization();
 
             app.UseCors("CorsPolicy");
 
