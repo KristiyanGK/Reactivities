@@ -2,6 +2,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Application.Errors;
+using Application.Interfaces;
 using Domain;
 using FluentValidation;
 using MediatR;
@@ -11,8 +12,8 @@ namespace Application.User
 {
     public class Login
     {
-        public class Query : IRequest<User> 
-        { 
+        public class Query : IRequest<User>
+        {
             public string Email { get; set; }
 
             public string Password { get; set; }
@@ -31,9 +32,11 @@ namespace Application.User
         {
             private readonly UserManager<AppUser> userManager;
             private readonly SignInManager<AppUser> signInManager;
+            private readonly IJwtGenerator jwtGenerator;
 
-            public Handler(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager)
+            public Handler(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IJwtGenerator jwtGenerator)
             {
+                this.jwtGenerator = jwtGenerator;
                 this.userManager = userManager;
                 this.signInManager = signInManager;
             }
@@ -42,26 +45,25 @@ namespace Application.User
             {
                 var user = await userManager.FindByEmailAsync(request.Email);
 
-                if (user == null) 
+                if (user == null)
                 {
                     throw new RestException(HttpStatusCode.Unauthorized);
                 }
 
                 var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, false);
 
-                if (result.Succeeded) 
+                if (!result.Succeeded)
                 {
-                    // TODO: generate token
-                    return new User 
-                    {
-                        DisplayName = user.DisplayName,
-                        Token = "This will be a token",
-                        Username = user.UserName,
-                        Image = null
-                    };
+                    throw new RestException(HttpStatusCode.Unauthorized);
                 }
 
-                throw new RestException(HttpStatusCode.Unauthorized);
+                return new User
+                {
+                    DisplayName = user.DisplayName,
+                    Token = jwtGenerator.CreateToken(user),
+                    Username = user.UserName,
+                    Image = null
+                };
             }
         }
     }
